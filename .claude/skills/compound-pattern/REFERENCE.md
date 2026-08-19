@@ -1,44 +1,6 @@
 # Compound Pattern — Reference
 
-## JavaScript template
-
-```jsx
-import { createContext, useContext, useState } from 'react';
-
-const RootContext = createContext(null);
-
-function useRootContext() {
-  const ctx = useContext(RootContext);
-  if (!ctx) throw new Error('<Root.X> must be used inside <Root>');
-  return ctx;
-}
-
-function Root({ children }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <RootContext.Provider value={{ open, setOpen }}>
-      {children}
-    </RootContext.Provider>
-  );
-}
-
-function Toggle() {
-  const { open, setOpen } = useRootContext();
-  return <button onClick={() => setOpen(o => !o)}>{open ? 'Close' : 'Open'}</button>;
-}
-Toggle.displayName = 'Root.Toggle';
-
-function Panel({ children }) {
-  const { open } = useRootContext();
-  return open ? <div>{children}</div> : null;
-}
-Panel.displayName = 'Root.Panel';
-
-const Compound = Object.assign(Root, { Toggle, Panel });
-export default Compound;
-```
-
-## TypeScript template
+## Template (TypeScript)
 
 ```tsx
 import { createContext, useContext, useState } from 'react';
@@ -86,6 +48,7 @@ export default Compound;
 ```
 
 > Use `Object.assign` rather than assigning to `Root.Toggle` — it avoids TypeScript errors about properties not existing on the function type.
+> For a `.js` file, drop the type annotations (`RootContextValue`, `: RootContextValue | null`, the `Props` interfaces) — the runtime code is identical.
 
 ## Before / after example
 

@@ -96,4 +96,4 @@ Signs a form needs this refactor:
 - [ ] Only the smallest necessary subtree is `'use client'` (e.g. the Submit button, not the whole page)
 - [ ] Orphaned API route removed
 
-See [REFERENCE.md](REFERENCE.md) for full templates: basic action, shared client/server validation schema, `useActionState` validation errors, `useFormStatus` submit button, `useOptimistic`, multiple submit actions (`formAction`), and a full before/after migration example.
+See [REFERENCE.md](REFERENCE.md) for templates: basic action, shared client/server validation schema, `useActionState` validation errors, `useFormStatus` submit button, `useOptimistic`, multiple submit actions (`formAction`), and what changes in a full migration.

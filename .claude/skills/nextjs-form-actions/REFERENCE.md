@@ -95,47 +95,38 @@ export async function createPost(prevState: State, formData: FormData): Promise<
 }
 ```
 
-Client component — same schema drives instant per-field feedback on `onBlur`, but submission still goes through the Server Action, not a client fetch:
+Client component — `onBlur` re-parses the same schema for instant per-field feedback, but submission still goes through the Server Action, not a client fetch:
 
 ```tsx
 // app/posts/create/create-post-form.tsx
 'use client'
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { createPost } from './actions'
 import { postSchema, type PostFieldErrors } from './schema'
 import { SubmitButton } from '@/components/submit-button'
-import { useState } from 'react'
 
 const initialState = { errors: {} as PostFieldErrors }
 
 export function CreatePostForm() {
   const [state, action] = useActionState(createPost, initialState)
-  const [liveErrors, setLiveErrors] = useState<PostFieldErrors>({})
+  const [titleError, setTitleError] = useState<string>()
 
-  function validateField(name: keyof PostFieldErrors, value: string) {
-    const result = postSchema.pick({ [name]: true } as any).safeParse({ [name]: value })
-    setLiveErrors((prev) => ({
-      ...prev,
-      [name]: result.success ? undefined : result.error.flatten().fieldErrors[name]?.[0],
-    }))
+  function validateTitle(value: string) {
+    const result = postSchema.shape.title.safeParse(value)
+    setTitleError(result.success ? undefined : result.error.issues[0]?.message)
   }
 
   return (
     <form action={action}>
-      <input
-        name="title"
-        required
-        maxLength={120}
-        onBlur={(e) => validateField('title', e.target.value)}
-      />
-      {(liveErrors.title || state.errors.title) && <p>{liveErrors.title ?? state.errors.title}</p>}
+      <input name="title" required maxLength={120} onBlur={(e) => validateTitle(e.target.value)} />
+      {(titleError ?? state.errors.title) && <p>{titleError ?? state.errors.title}</p>}
       <SubmitButton />
     </form>
   )
 }
 ```
 
-`required`/`maxLength` give a zero-JS baseline; `onBlur` gives instant feedback once hydrated; `state.errors` is the authoritative fallback covering anything the client skipped (JS disabled, stale client bundle, bypassed input).
+`required`/`maxLength` give a zero-JS baseline; `onBlur` gives instant feedback once hydrated; `state.errors` is the authoritative fallback covering anything the client skipped (JS disabled, stale bundle, bypassed input).
 
 ## Inline field errors: `useActionState`
 
@@ -252,106 +243,6 @@ export function Editor() {
 }
 ```
 
-## Full migration example
+## Full migration: what changes
 
-**Before** — client-side fetch against an API route:
-
-```tsx
-'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-
-export function CreatePostForm() {
-  const [title, setTitle] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-    const res = await fetch('/api/posts', {
-      method: 'POST',
-      body: JSON.stringify({ title }),
-    })
-    setIsLoading(false)
-    if (!res.ok) {
-      setError('Failed to create post')
-      return
-    }
-    const post = await res.json()
-    router.push(`/posts/${post.id}`)
-  }
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} name="title" />
-      <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Creating…' : 'Create Post'}
-      </button>
-      {error && <p>{error}</p>}
-    </form>
-  )
-}
-```
-
-```ts
-// app/api/posts/route.ts — now deletable
-export async function POST(req: Request) {
-  const { title } = await req.json()
-  const post = await db.post.create({ data: { title } })
-  return Response.json(post)
-}
-```
-
-**After** — Server Component + Server Action, errors via `useActionState`, pending via `useFormStatus`:
-
-```tsx
-// app/posts/create/page.tsx — Server Component, no 'use client'
-import { CreatePostForm } from './create-post-form'
-
-export default function Page() {
-  return <CreatePostForm />
-}
-```
-
-```tsx
-// app/posts/create/create-post-form.tsx
-'use client'
-import { useActionState } from 'react'
-import { createPost } from './actions'
-import { SubmitButton } from '@/components/submit-button'
-
-const initialState = { error: null }
-
-export function CreatePostForm() {
-  const [state, action] = useActionState(createPost, initialState)
-  return (
-    <form action={action}>
-      <input name="title" defaultValue="" />
-      <SubmitButton />
-      {state.error && <p>{state.error}</p>}
-    </form>
-  )
-}
-```
-
-```ts
-// app/posts/create/actions.ts
-'use server'
-import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
-
-export async function createPost(prevState: { error: string | null }, formData: FormData) {
-  const title = formData.get('title') as string
-  if (!title) {
-    return { error: 'Title is required' }
-  }
-  const post = await db.post.create({ data: { title } })
-  revalidatePath('/posts')
-  redirect(`/posts/${post.id}`)
-}
-```
-
-What changed: no `isLoading`/`error` state, no `router.push` after a manual fetch, no API route, controlled `title` state replaced with `defaultValue`, pending UI delegated to `SubmitButton` (`useFormStatus`), errors delegated to `useActionState`.
+A typical "before" — controlled `title` state, `handleSubmit` calling `fetch('/api/posts', ...)`, `isLoading`/`error` state, `router.push` on success, backed by an `app/api/posts/route.ts` — migrates by combining the patterns above: the API route's body becomes the `'use server'` action (Basic template), controlled input becomes `name` + `defaultValue`, `isLoading` is replaced by a `SubmitButton` using `useFormStatus`, and `error` is replaced by `useActionState`'s returned state (Inline field errors template). The API route is then deleted.
