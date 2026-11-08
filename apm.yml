@@ -1,0 +1,10 @@
+name: baudrier
+version: 0.1.0
+description: Skills for refactoring React and Next.js code, packaged for reuse with APM
+author: acusset
+
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}
