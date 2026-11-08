@@ -1,21 +1,34 @@
 A collection of [Claude Code skills](https://docs.claude.com/en/docs/claude-code/skills) for refactoring React and Next.js code, packaged as an [APM](https://microsoft.github.io/apm) package so it can be reused in other repositories.
 
-## Install
+## Using these skills in another repository
 
-Requires APM (developed against 0.35.0).
+Requires [APM](https://microsoft.github.io/apm) (developed against 0.35.0).
 
-```bash
-apm install acusset/baudrier              # deploy to the detected agent targets
-apm install acusset/baudrier --target claude
-```
+1. In the consuming repository, create an `apm.yml` if it has none (`apm init -y`).
+2. Install the package:
 
-Or declare it in your project's `apm.yml`:
+   ```bash
+   apm install acusset/baudrier                  # deploy to the detected agent targets
+   apm install acusset/baudrier --target claude  # or pick targets explicitly (comma-separated)
+   ```
 
-```yaml
-dependencies:
-  apm:
-    - acusset/baudrier
-```
+   This adds the package to `dependencies.apm` in your `apm.yml`, so you can also declare it by hand and run `apm install`:
+
+   ```yaml
+   dependencies:
+     apm:
+       - acusset/baudrier
+   ```
+
+3. The skills are deployed into the agent's skills folder: `.claude/skills/` for Claude Code, `.agents/skills/` for Copilot and Cursor. The package sources are fetched into `apm_modules/` (APM adds it to `.gitignore`).
+
+Skills link to each other (for example `slice-large-components` points to `compound-pattern`). On install APM rewrites those relative links to point into `apm_modules/`, so keep `apm_modules/` on disk wherever the deployed skills are used.
+
+### Keeping up to date
+
+- `apm outdated` shows whether a newer version is available; `apm update` refreshes the dependency (`apm update --dry-run` previews it).
+- Commit `apm.yml` and `apm.lock.yaml` so teammates and CI get the same version: `apm install --frozen` fails if the lockfile is out of sync.
+- Whether to also commit the deployed `.claude/skills/` is your choice; if you do not, teammates run `apm install` after cloning.
 
 ## Contributing
 
